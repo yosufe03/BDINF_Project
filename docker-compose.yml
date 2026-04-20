@@ -3,6 +3,8 @@ services:
     image: mongo:7
     container_name: bdinf-mongodb
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "27017:27017"
     environment:
@@ -11,12 +13,13 @@ services:
       MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
     volumes:
       - mongo_data:/data/db
-      - ./mongo-init:/docker-entrypoint-initdb.d:ro
 
   mongo-express:
     image: mongo-express:1.0.2
     container_name: bdinf-mongo-express
     restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       - mongodb
     ports:
@@ -26,6 +29,33 @@ services:
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_BASICAUTH: "false"
+
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bdinf-jupyter
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    ports:
+      - "8888:8888"
+    environment:
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${DB_NAME}?authSource=admin
+      DB_NAME: ${DB_NAME}
+    volumes:
+      - .:/workspace
+    working_dir: /workspace/anaconda_projects
+    command: >
+      jupyter lab
+      --ip=0.0.0.0
+      --port=8888
+      --no-browser
+      --allow-root
+      --NotebookApp.token=
+      --NotebookApp.password=
 
 volumes:
   mongo_data:
